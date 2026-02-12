@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Từ điển Anh - Việt (Autocomplete + Ghi chú từ mới)</title>
+  <style>
+    :root { --b:#e7e7e7; --bg:#fafafa; --txt:#111; --muted:#666; --danger:#b00020; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--txt); background:var(--bg); }
+    .wrap{ width:min(1100px,92%); margin:24px auto; }
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:14px 16px; background:#fff; border:1px solid var(--b); border-radius:14px;
+    }
+    .title{ font-weight:800; }
+    .muted{ color:var(--muted); font-size:14px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    input, button, select, textarea{
+      font:inherit; padding:10px 12px; border:1px solid var(--b); border-radius:10px; background:#fff;
+    }
+    textarea{ resize:vertical; min-height:92px; }
+    button{ cursor:pointer; font-weight:700; }
+    button.primary{ background:#111; color:#fff; border-color:#111; }
+    button.danger{ background:var(--danger); color:#fff; border-color:var(--danger); }
+    button:disabled{ opacity:.45; cursor:not-allowed; }
+
+    .card{
+      margin-top:14px; background:#fff; border:1px solid var(--b); border-radius:14px; padding:14px;
+    }
+    .grid{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    @media(max-width:900px){ .grid{ grid-template-columns:1fr; } }
+
+    table{ width:100%; border-collapse:separate; border-spacing:0; }
+    th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid var(--b); vertical-align:top; }
+    th{ font-size:13px; color:var(--muted); }
+    .tag{
+      display:inline-block; padding:4px 8px; border:1px solid var(--b); border-radius:999px;
+      font-size:12px; margin:2px 6px 2px 0; background:#fff;
+    }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .pill{ padding:6px 10px; border:1px solid var(--b); border-radius:999px; font-size:13px; background:#fff; }
+    .hidden{ display:none !important; }
+    .hint{ font-size:13px; color:var(--muted); margin-top:8px; line-height:1.4; }
+    .hr{ height:1px; background:var(--b); margin:12px 0; }
+    .small{ font-size:12px; color:var(--muted); }
+    .right{ margin-left:auto; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .toast{ margin-top:10px; font-size:13px; }
+
+    mark { padding: 0 2px; border-radius: 4px; }
+
+    /* Autocomplete */
+    .searchWrap{ position:relative; flex:1; min-width:240px; }
+    #q{ width:100%; }
+    .ac{
+      position:absolute; top:calc(100% + 6px); left:0; right:0;
+      background:#fff; border:1px solid var(--b); border-radius:12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.08);
+      max-height: 280px; overflow:auto;
+      z-index: 50;
+      padding:6px;
+    }
+    .acItem{
+      display:flex; flex-direction:column; gap:2px;
+      padding:10px 10px; border-radius:10px;
+      cursor:pointer;
+    }
+    .acItem:hover, .acItem.active{ background:#f3f3f3; }
+    .acTop{ display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
+    .acEn{ font-weight:800; }
+    .acVi{ color:var(--muted); font-size:13px; }
+    .acTags{ margin-top:2px; }
+    .acEmpty{ padding:10px; color:var(--muted); font-size:13px; }
+  
+    /* Admin editor: make Add/Edit column wider & inputs taller */
+    #adminPanel .grid{ grid-template-columns: 2fr 1fr 1fr; }
+    #adminPanel input, #adminPanel textarea, #adminPanel select{
+      padding: 14px 14px;
+      font-size: 16px;
+      border-radius: 12px;
+    }
+    #adminPanel .cardlikeBig{
+      padding: 16px;
+    }
+    #adminPanel #vi{ min-height: 56px; }
+
+  
+    /* Nicer vertical form layout for Add/Edit */
+    #adminPanel .adminEditor label{
+      display:block;
+      font-size:12px;
+      color:var(--muted);
+      margin:10px 0 6px;
+      font-weight:700;
+      letter-spacing:.2px;
+      text-transform:uppercase;
+    }
+    #adminPanel .adminEditor input, #adminPanel .adminEditor textarea{
+      width:100%;
+    }
+    #adminPanel .adminEditor textarea{
+      min-height: 120px;
+    }
+    #adminPanel .adminEditor .row{
+      margin-top:12px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <div class="title">📘 Từ điển Anh → Việt (Autocomplete + Ghi chú từ mới)</div>
+        <div class="muted">Ai có link đều xem & tra cứu. Chỉ <b>Admin</b> mới Import/Sửa/Xóa.</div>
+      </div>
+      <div class="row">
+        <span id="authState" class="pill">Chưa đăng nhập</span>
+        <button id="btnLoginOpen">Đăng nhập Admin</button>
+        <button id="btnLogout" class="hidden">Đăng xuất</button>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="card">
+      <div class="row" style="align-items:center; width:100%;">
+        <div class="searchWrap">
+          <input id="q" autocomplete="off" placeholder="Nhập từ cần tra: ví dụ 'app', 'hẹn', hoặc tag..." />
+          <div id="ac" class="ac hidden" role="listbox" aria-label="Gợi ý từ"></div>
+        </div>
+
+        <select id="tagFilter">
+          <option value="">Tất cả tag</option>
+        </select>
+
+        <button id="btnClear">Xóa lọc</button>
+
+        <span class="right small">Tổng: <b id="countAll">0</b> | Đang hiện: <b id="countShown">0</b></span>
+      </div>
+
+      <div class="hint">
+        Autocomplete ưu tiên theo <b>Từ tiếng Anh</b>. Tìm trong bảng vẫn hỗ trợ <b>tiếng Việt</b> và <b>tag</b>.
+        Tag nhập dạng: <span class="mono">y tế, du lịch, học thuật</span>
+      </div>
+    </div>
+
+    <!-- New word request (public) -->
+    <div class="card">
+      <div class="row" style="align-items:center;">
+        <div class="title" style="font-size:16px;">📝 Ghi chú / yêu cầu giải nghĩa từ mới</div>
+        <span class="right small">Dành cho mọi người</span>
+      </div>
+      <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label class="small" for="reqEn"><b>Từ tiếng Anh cần giải nghĩa</b></label>
+          <input id="reqEn" placeholder="Ví dụ: resilience" />
+          <div class="hint">Bạn có thể nhập cụm từ: <span class="mono">boarding pass</span></div>
+        </div>
+        <div>
+          <label class="small" for="reqTags"><b>Tag công dụng (nếu biết)</b></label>
+          <input id="reqTags" placeholder="Ví dụ: y tế, công việc" />
+          <div class="hint">Không bắt buộc.</div>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <label class="small" for="reqNote"><b>Giải thích / ngữ cảnh / ghi chú</b></label>
+          <textarea id="reqNote" placeholder="Ví dụ: gặp trong email khách hàng, không chắc nghĩa; cần giải nghĩa phù hợp bối cảnh..."></textarea>
+          <div class="row">
+            <button id="btnReqSubmit" class="primary">Gửi ghi chú</button>
+            <button id="btnReqClear">Xóa nội dung</button>
+            <span id="reqStatus" class="small right"></span>
+          </div>
+          <div class="hint">
+            ⚠️ Nếu bạn chỉ host dạng <b>file tĩnh</b>, ghi chú này sẽ lưu vào trình duyệt của người gửi (localStorage). 
+            Muốn Admin nhận được ghi chú từ mọi người, cần 1 nơi lưu chung (Google Sheet/Form hoặc backend).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin panel -->
+    <div id="adminPanel" class="card hidden">
+      <div class="row" style="align-items:center;">
+        <div class="title" style="font-size:16px;">🔧 Quản trị (chỉ Admin)</div>
+        <button id="btnExport" class="right">Export JSON</button>
+        <button id="btnReset" class="danger">Reset dữ liệu</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="grid">
+        <div class="adminEditor">
+          <div class="muted" style="margin-bottom:8px;">Thêm / Sửa mục từ</div>
+
+          <label for="en">Từ tiếng Anh</label>
+          <input id="en" placeholder="Ví dụ: run" />
+
+          <label for="vi">Giải nghĩa tiếng Việt</label>
+          <textarea id="vi" placeholder="Nhập giải nghĩa tiếng Việt (có thể xuống dòng)"></textarea>
+
+          <label for="tags">Công dụng (tag)</label>
+          <input id="tags" placeholder="Ví dụ: y tế, văn phòng, du lịch" />
+
+          <div class="row">
+            <button id="btnSave" class="primary">Lưu</button>
+            <button id="btnCancelEdit">Hủy sửa</button>
+            <span class="small" id="editState">Đang thêm mới</span>
+          </div>
+
+          <div class="hint">Tag nhập dạng: <span class="mono">tag1, tag2, tag3</span></div>
+        </div>
+
+        <div>
+          <div class="muted" style="margin-bottom:8px;">Import dữ liệu</div>
+          <input type="file" id="fileInput" accept=".json,.csv,text/csv,application/json" />
+          <div class="hint">
+            Hỗ trợ:
+            <ul style="margin:8px 0 0; padding-left:18px;">
+              <li><b>JSON</b>: mảng các object { en, vi, tags }</li>
+              <li><b>CSV</b> header: <span class="mono">en,vi,tags</span></li>
+            </ul>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button id="btnImport" class="primary">Import</button>
+            <button id="btnDownloadTemplate">Tải mẫu CSV</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="muted" style="margin-bottom:8px;">Danh sách ghi chú từ mới</div>
+          <div class="hint" style="margin-top:0;">
+            Admin có thể xem/tải/export ghi chú (trong máy Admin). Nếu bạn muốn “gom” ghi chú từ mọi người về 1 chỗ, nói mình — mình sẽ gắn Google Sheet/Form.
+          </div>
+          <div class="row">
+            <button id="btnReqExport">Export ghi chú (JSON)</button>
+            <button id="btnReqClearAll" class="danger">Xóa toàn bộ ghi chú</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="toast" class="toast muted"></div>
+
+      <div class="hr"></div>
+
+      <div class="muted" style="margin-bottom:8px;">Bảng ghi chú (Admin)</div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:18%;">Từ</th>
+              <th style="width:22%;">Tag</th>
+              <th>Ghi chú</th>
+              <th style="width:160px;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="reqTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Dictionary Table -->
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:22%;">Từ tiếng Anh</th>
+            <th style="width:48%;">Giải nghĩa tiếng Việt</th>
+            <th style="width:30%;">Công dụng (tag)</th>
+            <th style="width:140px;">Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="hint">
+      Dữ liệu từ điển và ghi chú đang lưu trong <span class="mono">localStorage</span> của trình duyệt.
+    </div>
+  </div>
+
+  <!-- Login modal -->
+  <dialog id="loginDialog">
+    <form method="dialog" style="min-width:min(420px, 92vw); padding:16px;">
+      <div class="title" style="font-size:16px;">Đăng nhập để Import / Sửa / Xóa</div>
+      <p class="muted" style="margin-top:6px;">Nhập username/password bạn đã chỉ định trong file.</p>
+      <div class="row" style="flex-direction:column; align-items:stretch;">
+        <input id="loginUser" placeholder="Username" autocomplete="username" />
+        <input id="loginPass" placeholder="Password" type="password" autocomplete="current-password" />
+      </div>
+      <div class="row" style="margin-top:12px; justify-content:flex-end;">
+        <button value="cancel">Hủy</button>
+        <button id="btnLogin" class="primary" value="ok">Đăng nhập</button>
+      </div>
+      <p id="loginMsg" class="small" style="color:var(--danger); margin:10px 0 0;"></p>
+    </form>
+  </dialog>
+
+  <script>
+    /***********************
+     * CONFIG: ADMIN ACCOUNT
+     ***********************/
+    const ADMIN_USER = "admin";
+    const ADMIN_PASS = "123456";
+
+    /***********************
+     * STORAGE KEYS
+     ***********************/
+    const LS_KEY_DATA = "av_dict_data_v3";
+    const LS_KEY_AUTH = "av_dict_auth_v3";
+    const LS_KEY_REQS = "av_dict_reqs_v1";
+
+    /***********************
+     * SEED DATA
+     ***********************/
+    const seedData = [
+      { en: "run", vi: "chạy; vận hành", tags: ["thể thao", "động từ phổ biến"] },
+      { en: "appointment", vi: "cuộc hẹn", tags: ["y tế", "công việc"] },
+      { en: "boarding pass", vi: "thẻ lên máy bay", tags: ["du lịch", "hàng không"] },
+      { en: "apply", vi: "nộp đơn; áp dụng", tags: ["công việc", "học thuật"] },
+      { en: "application", vi: "ứng dụng; đơn xin", tags: ["công nghệ", "hành chính"] },
+    ];
+
+    let data = loadData();
+    let reqs = loadReqs();
+    let isAuthed = loadAuth();
+    let editingId = null;
+
+    // Autocomplete state
+    let acItems = [];
+    let acActiveIndex = -1;
+
+    // UI refs
+    const tbody = document.getElementById("tbody");
+    const q = document.getElementById("q");
+    const ac = document.getElementById("ac");
+    const tagFilter = document.getElementById("tagFilter");
+    const countAll = document.getElementById("countAll");
+    const countShown = document.getElementById("countShown");
+    const adminPanel = document.getElementById("adminPanel");
+    const authState = document.getElementById("authState");
+    const btnLoginOpen = document.getElementById("btnLoginOpen");
+    const btnLogout = document.getElementById("btnLogout");
+    const btnClear = document.getElementById("btnClear");
+
+    // Public request
+    const reqEn = document.getElementById("reqEn");
+    const reqTags = document.getElementById("reqTags");
+    const reqNote = document.getElementById("reqNote");
+    const btnReqSubmit = document.getElementById("btnReqSubmit");
+    const btnReqClear = document.getElementById("btnReqClear");
+    const reqStatus = document.getElementById("reqStatus");
+
+    // Admin request table
+    const reqTbody = document.getElementById("reqTbody");
+    const btnReqExport = document.getElementById("btnReqExport");
+    const btnReqClearAll = document.getElementById("btnReqClearAll");
+
+    // Admin fields
+    const en = document.getElementById("en");
+    const vi = document.getElementById("vi");
+    const tags = document.getElementById("tags");
+    const btnSave = document.getElementById("btnSave");
+    const btnCancelEdit = document.getElementById("btnCancelEdit");
+    const editState = document.getElementById("editState");
+
+    // Import/export
+    const fileInput = document.getElementById("fileInput");
+    const btnImport = document.getElementById("btnImport");
+    const btnExport = document.getElementById("btnExport");
+    const btnReset = document.getElementById("btnReset");
+    const btnDownloadTemplate = document.getElementById("btnDownloadTemplate");
+
+    // Login dialog
+    const loginDialog = document.getElementById("loginDialog");
+    const loginUser = document.getElementById("loginUser");
+    const loginPass = document.getElementById("loginPass");
+    const btnLogin = document.getElementById("btnLogin");
+    const loginMsg = document.getElementById("loginMsg");
+
+    const toast = document.getElementById("toast");
+
+    init();
+
+    function init(){
+      refreshAuthUI();
+      rebuildTagFilter();
+      render();
+      renderReqs();
+
+      // Public request events
+      btnReqSubmit.addEventListener("click", () => {
+        const enVal = (reqEn.value || "").trim();
+        const tagsVal = (reqTags.value || "").trim();
+        const noteVal = (reqNote.value || "").trim();
+
+        if(!enVal || !noteVal){
+          reqStatus.style.color = "var(--danger)";
+          reqStatus.textContent = "Vui lòng nhập: Từ tiếng Anh + Ghi chú/ngữ cảnh.";
+          return;
+        }
+
+        const item = {
+          id: crypto.randomUUID(),
+          en: enVal,
+          tags: parseTags(tagsVal),
+          note: noteVal,
+          createdAt: new Date().toISOString()
+        };
+        reqs.unshift(item);
+        saveReqs();
+        renderReqs();
+
+        reqStatus.style.color = "#0b6";
+        reqStatus.textContent = "Đã ghi chú (lưu trong trình duyệt của bạn).";
+        setTimeout(()=> reqStatus.textContent = "", 3500);
+      });
+
+      btnReqClear.addEventListener("click", () => {
+        reqEn.value = "";
+        reqTags.value = "";
+        reqNote.value = "";
+        reqStatus.textContent = "";
+      });
+
+      // Search + autocomplete
+      q.addEventListener("input", () => { render(); buildAutocomplete(); });
+      q.addEventListener("focus", () => { buildAutocomplete(); });
+
+      q.addEventListener("keydown", (e) => {
+        if(ac.classList.contains("hidden")) return;
+        if(e.key === "ArrowDown"){
+          e.preventDefault();
+          acActiveIndex = Math.min(acActiveIndex + 1, acItems.length - 1);
+          renderAutocomplete();
+        }else if(e.key === "ArrowUp"){
+          e.preventDefault();
+          acActiveIndex = Math.max(acActiveIndex - 1, 0);
+          renderAutocomplete();
+        }else if(e.key === "Enter"){
+          if(acActiveIndex >= 0 && acActiveIndex < acItems.length){
+            e.preventDefault();
+            selectAutocomplete(acItems[acActiveIndex]);
+          }
+        }else if(e.key === "Escape"){
+          hideAutocomplete();
+        }
+      });
+
+      document.addEventListener("click", (e) => {
+        const wrap = q.closest(".searchWrap");
+        if(!wrap.contains(e.target)) hideAutocomplete();
+      });
+
+      tagFilter.addEventListener("change", () => { render(); hideAutocomplete(); });
+
+      btnClear.addEventListener("click", () => { q.value=""; tagFilter.value=""; render(); buildAutocomplete(true); });
+
+      // Auth
+      btnLoginOpen.addEventListener("click", () => {
+        loginMsg.textContent = "";
+        loginUser.value = "";
+        loginPass.value = "";
+        loginDialog.showModal();
+      });
+
+      btnLogout.addEventListener("click", () => {
+        isAuthed = false;
+        saveAuth(false);
+        refreshAuthUI();
+        toastMsg("Đã đăng xuất.");
+      });
+
+      btnLogin.addEventListener("click", (e) => {
+        e.preventDefault();
+        const u = (loginUser.value || "").trim();
+        const p = loginPass.value || "";
+        if(u === ADMIN_USER && p === ADMIN_PASS){
+          isAuthed = true;
+          saveAuth(true);
+          refreshAuthUI();
+          loginDialog.close();
+          toastMsg("Đăng nhập thành công.");
+        }else{
+          loginMsg.textContent = "Sai username hoặc password.";
+        }
+      });
+
+      // Admin: dictionary editor
+      btnSave.addEventListener("click", () => {
+        requireAuth();
+        const enVal = (en.value || "").trim();
+        const viVal = (vi.value || "").trim();
+        const tagsVal = (tags.value || "").trim();
+
+        if(!enVal || !viVal){
+          toastMsg("Vui lòng nhập đủ: Từ tiếng Anh và Giải nghĩa tiếng Việt.");
+          return;
+        }
+
+        const tagArr = parseTags(tagsVal);
+
+        if(editingId){
+          const idx = data.findIndex(x => x.id === editingId);
+          if(idx >= 0){
+            data[idx] = { ...data[idx], en: enVal, vi: viVal, tags: tagArr };
+            toastMsg("Đã cập nhật.");
+          }
+        }else{
+          data.unshift({ id: crypto.randomUUID(), en: enVal, vi: viVal, tags: tagArr });
+          toastMsg("Đã thêm mới.");
+        }
+
+        saveData();
+        clearEditor();
+        rebuildTagFilter();
+        render();
+        buildAutocomplete(true);
+      });
+
+      btnCancelEdit.addEventListener("click", clearEditor);
+
+      // Admin: import/export dictionary
+      btnImport.addEventListener("click", async () => {
+        requireAuth();
+        const f = fileInput.files?.[0];
+        if(!f){ toastMsg("Hãy chọn file .json hoặc .csv trước."); return; }
+        try{
+          const text = await f.text();
+          let imported = [];
+          if(f.name.toLowerCase().endsWith(".json")) imported = parseJson(text);
+          else imported = parseCsv(text);
+
+          let updated = 0, added = 0;
+          for(const it of imported){
+            const key = (it.en || "").trim().toLowerCase();
+            if(!key) continue;
+            const idx = data.findIndex(x => x.en.trim().toLowerCase() === key);
+            const normalized = {
+              id: (idx>=0 ? data[idx].id : crypto.randomUUID()),
+              en: (it.en||"").trim(),
+              vi: (it.vi||"").trim(),
+              tags: Array.isArray(it.tags) ? it.tags.map(t=>String(t).trim()).filter(Boolean) : parseTags(String(it.tags||""))
+            };
+            if(idx>=0){ data[idx] = normalized; updated++; }
+            else { data.unshift(normalized); added++; }
+          }
+
+          saveData();
+          rebuildTagFilter();
+          render();
+          buildAutocomplete(true);
+          toastMsg(`Import xong. Thêm mới: ${added}, Cập nhật: ${updated}.`);
+          fileInput.value = "";
+        }catch(err){
+          console.error(err);
+          toastMsg("Import lỗi. Kiểm tra định dạng file.");
+        }
+      });
+
+      btnExport.addEventListener("click", () => {
+        requireAuth();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type:"application/json" });
+        downloadBlob(blob, "dictionary-data.json");
+        toastMsg("Đã export JSON.");
+      });
+
+      btnReset.addEventListener("click", () => {
+        requireAuth();
+        if(confirm("Reset sẽ xóa toàn bộ dữ liệu từ điển trên trình duyệt. Tiếp tục?")){
+          data = seedData.map(x => ({ id: crypto.randomUUID(), ...x }));
+          saveData();
+          rebuildTagFilter();
+          render();
+          buildAutocomplete(true);
+          toastMsg("Đã reset dữ liệu về mẫu.");
+        }
+      });
+
+      btnDownloadTemplate.addEventListener("click", () => {
+        requireAuth();
+        const csv = "en,vi,tags\nrun,\"chạy; vận hành\",\"thể thao, động từ phổ biến\"\nappointment,\"cuộc hẹn\",\"y tế, công việc\"\n";
+        const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+        downloadBlob(blob, "dictionary-template.csv");
+      });
+
+      // Admin: requests export/clear
+      btnReqExport.addEventListener("click", () => {
+        requireAuth();
+        const blob = new Blob([JSON.stringify(reqs, null, 2)], { type:"application/json" });
+        downloadBlob(blob, "dictionary-requests.json");
+        toastMsg("Đã export ghi chú (JSON).");
+      });
+
+      btnReqClearAll.addEventListener("click", () => {
+        requireAuth();
+        if(confirm("Xóa toàn bộ ghi chú từ mới trên trình duyệt Admin?")){
+          reqs = [];
+          saveReqs();
+          renderReqs();
+          toastMsg("Đã xóa toàn bộ ghi chú.");
+        }
+      });
+    }
+
+    /***********************
+     * AUTOCOMPLETE (EN)
+     ***********************/
+    function buildAutocomplete(forceShow=false){
+      const query = (q.value || "").trim().toLowerCase();
+      if(!forceShow && !query){ hideAutocomplete(); return; }
+
+      const candidates = data
+        .map(it => ({ it, enL: it.en.toLowerCase() }))
+        .filter(x => query ? x.enL.includes(query) : true);
+
+      candidates.sort((a,b) => {
+        if(!query) return a.it.en.localeCompare(b.it.en, "en");
+        const aP = a.enL.startsWith(query) ? 0 : 1;
+        const bP = b.enL.startsWith(query) ? 0 : 1;
+        if(aP !== bP) return aP - bP;
+        if(a.it.en.length !== b.it.en.length) return a.it.en.length - b.it.en.length;
+        return a.it.en.localeCompare(b.it.en, "en");
+      });
+
+      acItems = candidates.slice(0, 10).map(x => x.it);
+      acActiveIndex = acItems.length ? 0 : -1;
+      renderAutocomplete();
+    }
+
+    function renderAutocomplete(){
+      if(!acItems.length){
+        ac.innerHTML = `<div class="acEmpty">Không có gợi ý theo tiếng Anh. (Bạn vẫn có thể tìm theo tiếng Việt/tag trong bảng)</div>`;
+        showAutocomplete();
+        return;
+      }
+      const query = (q.value || "").trim().toLowerCase();
+      ac.innerHTML = acItems.map((it, idx) => {
+        const active = idx === acActiveIndex ? "active" : "";
+        const tagsHtml = (it.tags || []).slice(0,3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
+        return `
+          <div class="acItem ${active}" role="option" aria-selected="${idx===acActiveIndex}" data-id="${it.id}">
+            <div class="acTop"><div class="acEn">${highlight(it.en, query)}</div></div>
+            <div class="acVi">${escapeHtml(it.vi)}</div>
+            <div class="acTags">${tagsHtml}</div>
+          </div>
+        `;
+      }).join("");
+
+      [...ac.querySelectorAll(".acItem")].forEach((el, idx) => {
+        el.addEventListener("mouseenter", () => { acActiveIndex = idx; renderAutocomplete(); });
+        el.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          const id = el.getAttribute("data-id");
+          const it = acItems.find(x => x.id === id);
+          if(it) selectAutocomplete(it);
+        });
+      });
+
+      showAutocomplete();
+      ensureActiveVisible();
+    }
+
+    function ensureActiveVisible(){
+      const activeEl = ac.querySelector(".acItem.active");
+      if(!activeEl) return;
+      const top = activeEl.offsetTop;
+      const bottom = top + activeEl.offsetHeight;
+      if(top < ac.scrollTop) ac.scrollTop = top - 6;
+      else if(bottom > ac.scrollTop + ac.clientHeight) ac.scrollTop = bottom - ac.clientHeight + 6;
+    }
+
+    function selectAutocomplete(it){
+      q.value = it.en;
+      hideAutocomplete();
+      render();
+    }
+
+    function showAutocomplete(){ ac.classList.remove("hidden"); }
+    function hideAutocomplete(){
+      ac.classList.add("hidden");
+      acItems = [];
+      acActiveIndex = -1;
+      ac.innerHTML = "";
+    }
+
+    /***********************
+     * MAIN RENDER
+     ***********************/
+    function refreshAuthUI(){
+      authState.textContent = isAuthed ? "Đã đăng nhập (Admin)" : "Chưa đăng nhập";
+      adminPanel.classList.toggle("hidden", !isAuthed);
+      btnLogout.classList.toggle("hidden", !isAuthed);
+    }
+
+    function render(){
+      const query = (q.value || "").trim().toLowerCase();
+      const tag = (tagFilter.value || "").trim().toLowerCase();
+
+      let filtered = data.filter(it => {
+        const enTxt = it.en.toLowerCase();
+        const viTxt = it.vi.toLowerCase();
+        const tagsTxt = (it.tags || []).join(" ").toLowerCase();
+
+        const okQuery = !query || enTxt.includes(query) || viTxt.includes(query) || tagsTxt.includes(query);
+        const okTag = !tag || (it.tags || []).some(t => t.toLowerCase() === tag);
+        return okQuery && okTag;
+      });
+
+      filtered.sort((a,b) => {
+        if(!query) return a.en.localeCompare(b.en, "en");
+        const aEn = a.en.toLowerCase(), bEn = b.en.toLowerCase();
+        const aVi = a.vi.toLowerCase(), bVi = b.vi.toLowerCase();
+        const aTags = (a.tags||[]).join(" ").toLowerCase();
+        const bTags = (b.tags||[]).join(" ").toLowerCase();
+
+        const score = (s) => {
+          if(!query) return 0;
+          if(s.startsWith(query)) return 0;
+          if(s.includes(query)) return 1;
+          return 2;
+        };
+
+        const sa = Math.min(score(aEn), score(aVi), score(aTags));
+        const sb = Math.min(score(bEn), score(bVi), score(bTags));
+        if(sa !== sb) return sa - sb;
+
+        if(a.en.length !== b.en.length) return a.en.length - b.en.length;
+        return a.en.localeCompare(b.en, "en");
+      });
+
+      countAll.textContent = String(data.length);
+      countShown.textContent = String(filtered.length);
+
+      const MAX_ROWS = 200;
+      const shown = filtered.slice(0, MAX_ROWS);
+
+      tbody.innerHTML = "";
+      for(const it of shown){
+        const tr = document.createElement("tr");
+
+        const tdEn = document.createElement("td");
+        tdEn.innerHTML = highlight(it.en, query);
+
+        const tdVi = document.createElement("td");
+        tdVi.innerHTML = highlight(it.vi, query);
+
+        const tdTags = document.createElement("td");
+        tdTags.innerHTML = (it.tags || []).map(t => `<span class="tag">${highlight(escapeHtml(t), query)}</span>`).join("");
+
+        const tdAct = document.createElement("td");
+        const actWrap = document.createElement("div");
+        actWrap.className = "actions";
+
+        const btnEdit = document.createElement("button");
+        btnEdit.textContent = "Sửa";
+        btnEdit.disabled = !isAuthed;
+        btnEdit.addEventListener("click", () => startEdit(it.id));
+
+        const btnDel = document.createElement("button");
+        btnDel.textContent = "Xóa";
+        btnDel.className = "danger";
+        btnDel.disabled = !isAuthed;
+        btnDel.addEventListener("click", () => delItem(it.id));
+
+        actWrap.appendChild(btnEdit);
+        actWrap.appendChild(btnDel);
+        tdAct.appendChild(actWrap);
+
+        tr.appendChild(tdEn);
+        tr.appendChild(tdVi);
+        tr.appendChild(tdTags);
+        tr.appendChild(tdAct);
+
+        tbody.appendChild(tr);
+      }
+
+      if(filtered.length > MAX_ROWS){
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.className = "muted";
+        td.textContent = `Đang hiển thị ${MAX_ROWS}/${filtered.length} kết quả. Hãy nhập thêm ký tự để lọc hẹp hơn.`;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+    }
+
+    /***********************
+     * REQUESTS (Admin view)
+     ***********************/
+    function renderReqs(){
+      if(!reqTbody) return;
+      reqTbody.innerHTML = "";
+
+      if(!reqs.length){
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.className = "muted";
+        td.textContent = "Chưa có ghi chú nào trong trình duyệt này.";
+        tr.appendChild(td);
+        reqTbody.appendChild(tr);
+        return;
+      }
+
+      for(const r of reqs){
+        const tr = document.createElement("tr");
+
+        const tdEn = document.createElement("td");
+        tdEn.textContent = r.en;
+
+        const tdTags = document.createElement("td");
+        tdTags.innerHTML = (r.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
+
+        const tdNote = document.createElement("td");
+        tdNote.textContent = r.note;
+
+        const tdAct = document.createElement("td");
+        const wrap = document.createElement("div");
+        wrap.className = "actions";
+
+        const btnUse = document.createElement("button");
+        btnUse.textContent = "Đưa vào form";
+        btnUse.disabled = !isAuthed;
+        btnUse.addEventListener("click", () => {
+          requireAuth();
+          en.value = r.en;
+          tags.value = (r.tags || []).join(", ");
+          vi.value = "";
+          editingId = null;
+          editState.textContent = "Tạo mới từ ghi chú: " + r.en;
+          toastMsg("Đã đưa sang form. Hãy nhập nghĩa tiếng Việt rồi bấm Lưu.");
+          window.scrollTo({ top: 0, behavior:"smooth" });
+        });
+
+        const btnDel = document.createElement("button");
+        btnDel.textContent = "Xóa ghi chú";
+        btnDel.className = "danger";
+        btnDel.disabled = !isAuthed;
+        btnDel.addEventListener("click", () => {
+          requireAuth();
+          if(confirm(`Xóa ghi chú: "${r.en}" ?`)){
+            reqs = reqs.filter(x => x.id !== r.id);
+            saveReqs();
+            renderReqs();
+            toastMsg("Đã xóa ghi chú.");
+          }
+        });
+
+        wrap.appendChild(btnUse);
+        wrap.appendChild(btnDel);
+        tdAct.appendChild(wrap);
+
+        tr.appendChild(tdEn);
+        tr.appendChild(tdTags);
+        tr.appendChild(tdNote);
+        tr.appendChild(tdAct);
+
+        reqTbody.appendChild(tr);
+      }
+    }
+
+    /***********************
+     * DICTIONARY EDIT
+     ***********************/
+    function startEdit(id){
+      requireAuth();
+      const it = data.find(x => x.id === id);
+      if(!it) return;
+      editingId = id;
+      en.value = it.en;
+      vi.value = it.vi;
+      tags.value = (it.tags || []).join(", ");
+      editState.textContent = "Đang sửa: " + it.en;
+      toastMsg("Đang ở chế độ sửa. Bấm Lưu để cập nhật.");
+      hideAutocomplete();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearEditor(){
+      editingId = null;
+      en.value = "";
+      vi.value = "";
+      tags.value = "";
+      editState.textContent = "Đang thêm mới";
+    }
+
+    function delItem(id){
+      requireAuth();
+      const it = data.find(x => x.id === id);
+      if(!it) return;
+      if(confirm(`Xóa mục từ: "${it.en}" ?`)){
+        data = data.filter(x => x.id !== id);
+        saveData();
+        rebuildTagFilter();
+        render();
+        buildAutocomplete(true);
+        toastMsg("Đã xóa.");
+        if(editingId === id) clearEditor();
+      }
+    }
+
+    function rebuildTagFilter(){
+      const current = tagFilter.value || "";
+      const allTags = new Map();
+      for(const it of data){
+        for(const t of (it.tags || [])){
+          const k = String(t).trim();
+          if(!k) continue;
+          allTags.set(k.toLowerCase(), k);
+        }
+      }
+      const sorted = [...allTags.entries()].sort((a,b)=> a[1].localeCompare(b[1], "vi"));
+      tagFilter.innerHTML = `<option value="">Tất cả tag</option>` + sorted.map(([k,label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join("");
+      tagFilter.value = current.toLowerCase() || "";
+    }
+
+    /***********************
+     * PARSERS + HELPERS
+     ***********************/
+    function parseTags(s){
+      if(!s) return [];
+      return s.split(",").map(x => x.trim()).filter(Boolean);
+    }
+
+    function parseJson(text){
+      const raw = JSON.parse(text);
+      if(!Array.isArray(raw)) throw new Error("JSON must be an array");
+      return raw.map(x => ({
+        en: x.en ?? x.english ?? "",
+        vi: x.vi ?? x.vietnamese ?? "",
+        tags: x.tags ?? x.usage ?? ""
+      }));
+    }
+
+    function parseCsv(text){
+      const rows = csvToRows(text);
+      if(rows.length === 0) return [];
+      const header = rows[0].map(h => h.trim().toLowerCase());
+      const idxEn = header.indexOf("en");
+      const idxVi = header.indexOf("vi");
+      const idxTags = header.indexOf("tags");
+      if(idxEn < 0 || idxVi < 0) throw new Error("CSV header must include en,vi,tags");
+      const out = [];
+      for(let i=1;i<rows.length;i++){
+        const r = rows[i];
+        if(r.every(c => !String(c||"").trim())) continue;
+        out.push({ en: r[idxEn] ?? "", vi: r[idxVi] ?? "", tags: (idxTags>=0 ? (r[idxTags] ?? "") : "") });
+      }
+      return out;
+    }
+
+    function csvToRows(text){
+      const rows = [];
+      let row = [];
+      let cur = "";
+      let inQuotes = false;
+
+      for(let i=0;i<text.length;i++){
+        const ch = text[i];
+        const next = text[i+1];
+
+        if(ch === '"' ){
+          if(inQuotes && next === '"'){ cur += '"'; i++; }
+          else { inQuotes = !inQuotes; }
+          continue;
+        }
+
+        if(!inQuotes && ch === ","){ row.push(cur); cur = ""; continue; }
+        if(!inQuotes && ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; continue; }
+        if(ch === "\r") continue;
+        cur += ch;
+      }
+      row.push(cur);
+      rows.push(row);
+      return rows.filter(r => !(r.length===1 && !String(r[0]||"").trim()));
+    }
+
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function highlight(text, query){
+      const safe = escapeHtml(text ?? "");
+      if(!query) return safe;
+      const qx = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(qx, "ig");
+      return safe.replace(re, (m) => `<mark>${m}</mark>`);
+    }
+
+    function toastMsg(msg){
+      if(!toast) return;
+      toast.textContent = msg;
+      setTimeout(()=>{ toast.textContent = ""; }, 4000);
+    }
+
+    function requireAuth(){
+      if(!isAuthed){
+        toastMsg("Bạn cần đăng nhập để thao tác này.");
+        throw new Error("Not authed");
+      }
+    }
+
+    /***********************
+     * STORAGE
+     ***********************/
+    function loadData(){
+      try{
+        const s = localStorage.getItem(LS_KEY_DATA);
+        if(!s){
+          const seeded = seedData.map(x => ({ id: crypto.randomUUID(), ...x }));
+          localStorage.setItem(LS_KEY_DATA, JSON.stringify(seeded));
+          return seeded;
+        }
+        const parsed = JSON.parse(s);
+        if(!Array.isArray(parsed)) throw new Error("bad");
+        return parsed.map(x => ({
+          id: x.id || crypto.randomUUID(),
+          en: String(x.en || "").trim(),
+          vi: String(x.vi || "").trim(),
+          tags: Array.isArray(x.tags) ? x.tags.map(t=>String(t).trim()).filter(Boolean) : parseTags(String(x.tags||""))
+        }));
+      }catch(_){
+        const seeded = seedData.map(x => ({ id: crypto.randomUUID(), ...x }));
+        localStorage.setItem(LS_KEY_DATA, JSON.stringify(seeded));
+        return seeded;
+      }
+    }
+
+    function saveData(){ localStorage.setItem(LS_KEY_DATA, JSON.stringify(data)); }
+
+    function loadReqs(){
+      try{
+        const s = localStorage.getItem(LS_KEY_REQS);
+        if(!s) return [];
+        const parsed = JSON.parse(s);
+        if(!Array.isArray(parsed)) return [];
+        return parsed.map(x => ({
+          id: x.id || crypto.randomUUID(),
+          en: String(x.en || "").trim(),
+          tags: Array.isArray(x.tags) ? x.tags.map(t=>String(t).trim()).filter(Boolean) : parseTags(String(x.tags||"")),
+          note: String(x.note || "").trim(),
+          createdAt: x.createdAt || new Date().toISOString()
+        }));
+      }catch(_){ return []; }
+    }
+    function saveReqs(){ localStorage.setItem(LS_KEY_REQS, JSON.stringify(reqs)); }
+
+    function loadAuth(){ return localStorage.getItem(LS_KEY_AUTH) === "1"; }
+    function saveAuth(v){ localStorage.setItem(LS_KEY_AUTH, v ? "1" : "0"); }
+
+    function downloadBlob(blob, filename){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
